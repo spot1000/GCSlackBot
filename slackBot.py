@@ -6,19 +6,32 @@ from dotenv import load_dotenv
 load_dotenv('.env')
 
 slack_token = os.environ["SLACK_API_TOKEN"]
-'xoxb-264312408192-Zkkh3jBOEcrmUojKVfM7X6gk'
 sc = SlackClient(slack_token)
 
-sc.api_call(
-  "chat.postMessage",
-  channel="#bot_playground",
-  text="Hello from Adam! :tada:"
-)
+def handle_event(event):
+  if event['type'] == "message":
+    handle_message(event)
+  elif event['type'] == "presence_change":
+    handle_presence_change(event)
+
+def handle_message(event):
+  print("Got message '" + event['text'] + "' from '" + event['user'] + "'")
+  if (event['text'] == 'Hello'):
+    sc.api_call(
+        "chat.postMessage",
+        channel=event['channel'],
+        text=  "Hi " + event['user'] + "! :tada:"
+    )
+
+def handle_presence_change(event):
+  print("Status change for ", event['user'])
 
 if sc.rtm_connect():
+    print("StarterBot connected and running!")
     while True:
-        event = sc.rtm_read()
-        print(event)
+        events = sc.rtm_read()
+
+        for event in events:
+          handle_event(event)
+
         time.sleep(1)
-else:
-    print("Connection Failed")
