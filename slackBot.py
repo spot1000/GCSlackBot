@@ -16,15 +16,32 @@ def handle_event(event):
 
 def handle_message(event):
   print("Got message '" + event['text'] + "' from '" + event['user'] + "'")
-  if (event['text'] == 'Hello'):
-    sc.api_call(
-        "chat.postMessage",
-        channel=event['channel'],
-        text=  "Hi " + event['user'] + "! :tada:"
-    )
+  say_hello(event)
 
 def handle_presence_change(event):
   print("Status change for ", event['user'])
+
+def say_hello(event):
+    if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+      response = sc.api_call(
+          "users.info",
+          user=event['user']
+      )
+      displayName = response['user']['profile']['display_name']
+      realName = response['user']['real_name']
+      if(displayName != ''):
+          sc.api_call(
+              "chat.postMessage",
+              channel=event['channel'],
+              text=  "Hi " + displayName + "! :tada:"
+          )
+      else:
+          sc.api_call(
+              "chat.postMessage",
+              channel=event['channel'],
+              text=  "Hi " + realName + "! :tada:"
+          )
+
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
