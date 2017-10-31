@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv('.env')
 
 slack_token = os.environ["SLACK_API_TOKEN"]
-'xoxb-264312408192-Zkkh3jBOEcrmUojKVfM7X6gk'
 sc = SlackClient(slack_token)
 
 sc.api_call(
