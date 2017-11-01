@@ -28,7 +28,7 @@ def get_Users():
           user=member
       )
       currentUsers[member] = [userInfo["user"]["name"], presenceStatus['presence']]
-  print(currentUsers)
+  return currentUsers
     
 
 
@@ -68,7 +68,8 @@ def say_hello(event):
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
-    get_Users()
+    channelUsers = get_Users()
+    print(channelUsers)
 
     while True:
         events = sc.rtm_read()
