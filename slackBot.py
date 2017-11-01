@@ -8,7 +8,29 @@ load_dotenv('.env')
 slack_token = os.environ["SLACK_API_TOKEN"]
 sc = SlackClient(slack_token)
 
-# def create_user_list:
+def get_Users():
+  currentUsers = {}
+  channelInfo = (sc.api_call(
+      "channels.info",
+      channel="C7T0QG3T6"
+  ))
+  print(channelInfo)
+  members = channelInfo["channel"]["members"]
+  for member in members:
+    userInfo = sc.api_call(
+        "users.info",
+        user=member
+    )
+    if userInfo["user"]["is_bot"] == False:
+
+      presenceStatus = sc.api_call(
+          "users.getPresence",
+          user=member
+      )
+      currentUsers[member] = [userInfo["user"]["name"], presenceStatus['presence']]
+  return currentUsers
+
+
 
 def handle_event(event):
   if event['type'] == "message":
@@ -17,7 +39,6 @@ def handle_event(event):
     handle_presence_change(event)
 
 def handle_message(event):
-  print("Got message '" + event['text'] + "' from '" + event['user'] + "'")
   say_hello(event)
 
 def handle_presence_change(event):
@@ -46,6 +67,9 @@ def say_hello(event):
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
+    channelUsers = get_Users()
+    print(channelUsers)
+
     while True:
         events = sc.rtm_read()
 
