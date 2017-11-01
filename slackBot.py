@@ -8,6 +8,8 @@ load_dotenv('.env')
 slack_token = os.environ["SLACK_API_TOKEN"]
 sc = SlackClient(slack_token)
 
+# def create_user_list:
+
 def handle_event(event):
   if event['type'] == "message":
     handle_message(event)
@@ -22,26 +24,25 @@ def handle_presence_change(event):
   print("Status change for ", event['user'])
 
 def say_hello(event):
-    if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
-      response = sc.api_call(
-          "users.info",
-          user=event['user']
+  if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+    response = sc.api_call(
+      "users.info",
+      user=event['user']
+    )
+    displayName = response['user']['profile']['display_name']
+    realName = response['user']['real_name']
+    if(displayName != ''):
+      sc.api_call(
+          "chat.postMessage",
+          channel=event['channel'],
+          text=  "Hi " + displayName + "! :tada:"
       )
-      displayName = response['user']['profile']['display_name']
-      realName = response['user']['real_name']
-      if(displayName != ''):
-          sc.api_call(
-              "chat.postMessage",
-              channel=event['channel'],
-              text=  "Hi " + displayName + "! :tada:"
-          )
-      else:
-          sc.api_call(
-              "chat.postMessage",
-              channel=event['channel'],
-              text=  "Hi " + realName + "! :tada:"
-          )
-
+    else:
+      sc.api_call(
+          "chat.postMessage",
+          channel=event['channel'],
+          text=  "Hi " + realName + "! :tada:"
+      )
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
