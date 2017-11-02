@@ -8,7 +8,7 @@ load_dotenv('.env')
 slack_token = os.environ["SLACK_API_TOKEN"]
 sc = SlackClient(slack_token)
 
-def get_Users():
+def get_Users(startTime):
   currentUsers = {}
   channelInfo = (sc.api_call(
       "channels.info",
@@ -22,27 +22,66 @@ def get_Users():
         user=member
     )
     if userInfo["user"]["is_bot"] == False:
-
       presenceStatus = sc.api_call(
           "users.getPresence",
           user=member
       )
-      currentUsers[member] = [userInfo["user"]["name"], presenceStatus['presence']]
+      if (presenceStatus['presence'] == 'active'):
+          currentUsers[member] = {
+              "userName":userInfo["user"]["name"],
+              "presence":presenceStatus['presence'],
+              "score":0,
+              "activeTimeStamp": startTime,
+              "awayTimeStamp": 0
+              }
+      else:
+          currentUsers[member] = {
+            "userName":userInfo["user"]["name"],
+            "presence":presenceStatus['presence'],
+            "score":0,
+            "activeTimeStamp": 0,
+            "awayTimeStamp": startTime
+            }
   return currentUsers
 
 
-
-def handle_event(event):
+def handle_event(event,channelUsers):
   if event['type'] == "message":
     handle_message(event)
   elif event['type'] == "presence_change":
-    handle_presence_change(event)
+    handle_presence_change(event,channelUsers)
 
 def handle_message(event):
   say_hello(event)
 
-def handle_presence_change(event):
-  print("Status change for ", event['user'])
+def handle_presence_change(event,channelUsers):
+    print("Status change for ", event['user'], event['presence'])
+    try:
+        channelUsers[event['user']]
+    except KeyError:
+        print('bots don\'t count!')
+    else:
+        if(event['presence'] == 'away'):
+            ts = time.time()
+            # user is now Away > it's time to calculate the score he obtained while he was Active
+            print('Inactive user: ', channelUsers[event['user']])
+            print('Its score is ', channelUsers[event['user']]['score'])
+            print('Its inactiveTimeStamp is ', channelUsers[event['user']]['activeTimeStamp'])
+            pointGained = round((ts - channelUsers[event['user']]['activeTimeStamp']))
+            updatePoints = (channelUsers[event['user']]['score'] + pointGained)
+            newScore = {"score" : updatePoints}
+            channelUsers[event['user']].update(newScore)
+            print('NEW SCORE FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['score'])
+            print('All users: \n', channelUsers)
+
+        #  FOR LATER :)
+        elif(event['presence'] == 'active'):
+            ts = time.time()
+            # user is now active, so we reset the timeStamp
+            newActiveTime = {'activeTimeStamp' : ts}
+            channelUsers[event['user']].update(newActiveTime)
+            print('NEW ACTIVE TIMESTAMP FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['activeTimeStamp'])
+
 
 def say_hello(event):
   if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
@@ -64,16 +103,24 @@ def say_hello(event):
           channel=event['channel'],
           text=  "Hi " + realName + "! :tada:"
       )
+  # elif (event['text'].lower() == 'score' or event['text'].lower() == 'score!'):
+  #
+  #     sc.api_call(
+  #         "chat.postMessage",
+  #         channel=event['channel'],
+  #         text=  "leave me alone!"
+  #     )
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
-    channelUsers = get_Users()
+    startTime = time.time()
+    channelUsers = get_Users(startTime)
     print(channelUsers)
 
     while True:
         events = sc.rtm_read()
 
         for event in events:
-          handle_event(event)
+          handle_event(event,channelUsers)
 
         time.sleep(1)
