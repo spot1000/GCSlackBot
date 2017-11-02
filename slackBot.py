@@ -8,6 +8,10 @@ load_dotenv('.env')
 slack_token = os.environ["SLACK_API_TOKEN"]
 sc = SlackClient(slack_token)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d19478d91687206c10467b9dae2b9478b31250c0
 def get_Users(startTime):
   currentUsers = {}
   channelInfo = (sc.api_call(
@@ -28,6 +32,7 @@ def get_Users(startTime):
       )
       if (presenceStatus['presence'] == 'active'):
           currentUsers[member] = {
+<<<<<<< HEAD
               "userName":userInfo["user"]["name"],
               "presence":presenceStatus['presence'],
               "score":0,
@@ -46,13 +51,38 @@ def get_Users(startTime):
 
 
 def handle_event(event,channelUsers):
+=======
+              "userName": userInfo["user"]["name"],
+              "presence": presenceStatus['presence'],
+              "score": 0,
+              "activeTimeStamp": startTime,
+              "awayTimeStamp": 0
+          }
+      else:
+          currentUsers[member] = {
+              "userName": userInfo["user"]["name"],
+              "presence": presenceStatus['presence'],
+              "score": 0,
+              "activeTimeStamp": 0,
+              "awayTimeStamp": startTime
+          }
+  return currentUsers
+
+
+def handle_event(event, users):
+>>>>>>> d19478d91687206c10467b9dae2b9478b31250c0
   if event['type'] == "message":
-    handle_message(event)
+    handle_message(event, users)
   elif event['type'] == "presence_change":
     handle_presence_change(event,channelUsers)
 
-def handle_message(event):
-  say_hello(event)
+
+def handle_message(event, userList):
+    if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+        say_hello(event)
+    elif (event['text'].lower() == 'score'):
+        get_score(event, userList)
+
 
 def handle_presence_change(event,channelUsers):
     print("Status change for ", event['user'], event['presence'])
@@ -83,15 +113,23 @@ def handle_presence_change(event,channelUsers):
             print('NEW ACTIVE TIMESTAMP FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['activeTimeStamp'])
 
 
+
 def say_hello(event):
+<<<<<<< HEAD
   if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
     response = sc.api_call(
       "users.info",
       user=event['user']
+=======
+    response = sc.api_call(
+        "users.info",
+        user=event['user']
+>>>>>>> d19478d91687206c10467b9dae2b9478b31250c0
     )
     displayName = response['user']['profile']['display_name']
     realName = response['user']['real_name']
     if(displayName != ''):
+<<<<<<< HEAD
       sc.api_call(
           "chat.postMessage",
           channel=event['channel'],
@@ -110,17 +148,50 @@ def say_hello(event):
   #         channel=event['channel'],
   #         text=  "leave me alone!"
   #     )
+=======
+        sc.api_call(
+            "chat.postMessage",
+            channel=event['channel'],
+            text="Hi " + displayName + "! :tada:"
+        )
+    else:
+        sc.api_call(
+            "chat.postMessage",
+            channel=event['channel'],
+            text="Hi " + realName + "! :tada:"
+        )
+
+def get_score(event, userList):
+    timestamp = time.time()
+    for value in userList:
+        score = userList[value]['score']
+        if (userList[value]['presence']=="active"):
+            score = userList[value]['score'] + \
+                int(timestamp) - int(userList[value]['activeTimeStamp'])
+        print(userList[value]['userName'] + ": " + str(score))
+        sc.api_call(
+            "chat.postMessage",
+            channel=event['channel'],
+            text="score for " + userList[value]['userName'] + ": " + str(score)
+        )
+
+>>>>>>> d19478d91687206c10467b9dae2b9478b31250c0
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
     startTime = time.time()
     channelUsers = get_Users(startTime)
     print(channelUsers)
+    # print(get_score(channelUsers))
 
     while True:
         events = sc.rtm_read()
 
         for event in events:
+<<<<<<< HEAD
           handle_event(event,channelUsers)
+=======
+          handle_event(event, channelUsers)
+>>>>>>> d19478d91687206c10467b9dae2b9478b31250c0
 
         time.sleep(1)
