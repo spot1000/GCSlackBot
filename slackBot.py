@@ -14,9 +14,7 @@ def get_Users(startTime):
         "channels.info",
         channel="C7T0QG3T6"
     ))
-    # print(channelInfo)
     members = channelInfo["channel"]["members"]
-    # print(members)
     for member in members:
         userInfo = sc.api_call(
             "users.info",
@@ -32,7 +30,6 @@ def get_Users(startTime):
                 "presence": presenceStatus['presence'],
                 "score": 0
             }
-            # print(currentUsers)
             if (presenceStatus['presence'] == 'active'):
                 currentUsers[member].update({
                     "activeTimeStamp": startTime,
@@ -62,7 +59,6 @@ def handle_message(event, userList):
 
 
 def handle_presence_change(event,channelUsers):
-    # print("Status change for ", event['user'], event['presence'])
     try:
         channelUsers[event['user']]
     except KeyError:
@@ -70,27 +66,17 @@ def handle_presence_change(event,channelUsers):
     else:
         if(event['presence'] == 'away'):
             ts = time.time()
-            # user is now Away > it's time to calculate the score he obtained while he was Active
-            # print('Inactive user: ', channelUsers[event['user']])
-            # print('Its score is ', channelUsers[event['user']]['score'])
-            # print('Its inactiveTimeStamp is ', channelUsers[event['user']]['activeTimeStamp'])
             pointGained = int((ts - channelUsers[event['user']]['activeTimeStamp']))
             updatePoints = (channelUsers[event['user']]['score'] + pointGained)
             newScore = {"score" : updatePoints}
             channelUsers[event['user']].update(newScore)
             channelUsers[event['user']].update({'presence':"away"})
-            # print('NEW SCORE FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['score'])
-            # print('All users: \n', channelUsers)
 
-        #  FOR LATER :)
         elif(event['presence'] == 'active'):
             ts = time.time()
-            # user is now active, so we reset the timeStamp
             newActiveTime = {'activeTimeStamp' : ts}
             channelUsers[event['user']].update(newActiveTime)
             channelUsers[event['user']].update({'presence': "active"})
-            # print('NEW ACTIVE TIMESTAMP FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['activeTimeStamp'])
-
 
 def say_hello(event, userlist):
     displayName = userlist[event['user']]['userName']
@@ -111,41 +97,35 @@ def get_my_score(event, userList):
         text=userList[event['user']]['userName'] +
         ", Your current score is: " + str(score)
     )
-    # if (userList[value]['presence']=="active"):
-    #     print(userList[value])
-    #     score = userList[value]['score'] + \
-    #         int(timestamp) - int(userList[value]['activeTimeStamp'])
-    #     print(userList[value]['userName'] + ": " + str(score))
-        
 
 def get_highscores(event, userList):
     timestamp = time.time()
-    allscores = ''
-    for value in userList:        
+    allscores = {}
+    for value in userList:
         if (userList[value]['presence'] == "active"):
             score = userList[value]['score']
             # print(userList[value])
             score = userList[value]['score'] + \
                 int(timestamp) - int(userList[value]['activeTimeStamp'])
             # print(userList[value]['userName'] + ": " + str(score))
-            allscores = allscores + "\n score for " + userList[value]['userName'] + ": " + str(score)
+            allscores[userList[value]['userName']] = score
         else:
             score = userList[value]['score']
-            allscores = allscores + "\n score for " + userList[value]['userName'] + ": " + str(score)
-    
+            allscores[userList[value]['userName']] = score
+    s = [(k, allscores[k]) for k in sorted(allscores, key=allscores.get, reverse=True)]
+    allScoreSorted = ''
+    for k, v in s:
+        allScoreSorted = allScoreSorted + str(k) + ' ' + str(v) + '\n'
     sc.api_call(
         "chat.postMessage",
         channel=event['channel'],
-        text=allscores
+        text="*** Highscores *** \n" + allScoreSorted
     )
-
 
 if sc.rtm_connect():
     print("StarterBot connected and running!")
     startTime = time.time()
     channelUsers = get_Users(startTime)
-    # print(channelUsers)
-    # print(get_score(channelUsers))
 
     while True:
         events = sc.rtm_read()
@@ -156,4 +136,4 @@ if sc.rtm_connect():
             elif event['type'] == "presence_change":
                 handle_presence_change(event,channelUsers)
 
-        time.sleep(1)
+        time.sleep(.1)
