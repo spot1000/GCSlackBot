@@ -69,15 +69,15 @@ def handle_presence_change(event,channelUsers):
         if(event['presence'] == 'away'):
             ts = time.time()
             # user is now Away > it's time to calculate the score he obtained while he was Active
-            print('Inactive user: ', channelUsers[event['user']])
-            print('Its score is ', channelUsers[event['user']]['score'])
-            print('Its inactiveTimeStamp is ', channelUsers[event['user']]['activeTimeStamp'])
+            # print('Inactive user: ', channelUsers[event['user']])
+            # print('Its score is ', channelUsers[event['user']]['score'])
+            # print('Its inactiveTimeStamp is ', channelUsers[event['user']]['activeTimeStamp'])
             pointGained = round((ts - channelUsers[event['user']]['activeTimeStamp']))
             updatePoints = (channelUsers[event['user']]['score'] + pointGained)
             newScore = {"score" : updatePoints}
             channelUsers[event['user']].update(newScore)
-            print('NEW SCORE FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['score'])
-            print('All users: \n', channelUsers)
+            # print('NEW SCORE FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['score'])
+            # print('All users: \n', channelUsers)
 
         #  FOR LATER :)
         elif(event['presence'] == 'active'):
@@ -85,7 +85,7 @@ def handle_presence_change(event,channelUsers):
             # user is now active, so we reset the timeStamp
             newActiveTime = {'activeTimeStamp' : ts}
             channelUsers[event['user']].update(newActiveTime)
-            print('NEW ACTIVE TIMESTAMP FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['activeTimeStamp'])
+            # print('NEW ACTIVE TIMESTAMP FOR ', channelUsers[event['user']]['userName'], ': ', channelUsers[event['user']]['activeTimeStamp'])
 
 
 
