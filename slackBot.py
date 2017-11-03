@@ -3,18 +3,19 @@ import time
 import logging
 from slackclient import SlackClient
 from dotenv import load_dotenv
+import pickle
+import copy
 
 class IdleRpgBot():
     def __init__(self, slack_token, active_channel_name, db_filename = "users.db"):
         self.slack_token = slack_token
         self.active_channel_name = active_channel_name
         self.sc = SlackClient(slack_token)
-        # self.users = {}
+        self.users = {}
         # self.fb_filename = db_filename
         # self.load()
 
     def get_Users(self, startTime):
-        currentUsers = {}
         channelInfo = (self.sc.api_call(
             "users.list",
             presence=True
@@ -23,22 +24,22 @@ class IdleRpgBot():
         for member in members:
             if member["is_bot"] == False and member['deleted'] == False and not member['id'] == 'USLACKBOT':
 
-                currentUsers[member['id']] = {
+                self.users[member['id']] = {
                     "userName": self.get_userName(member),
                     "presence": member['presence'],
                     "score": 0
                 }
                 if (member['presence'] == 'active'):
-                    currentUsers[member['id']].update({
+                    self.users[member['id']].update({
                         "activeTimeStamp": startTime,
                         "awayTimeStamp": 0
                     })
                 else:
-                    currentUsers[member['id']].update({
+                    self.users[member['id']].update({
                         "activeTimeStamp": 0,
                         "awayTimeStamp": startTime
                     })
-        return currentUsers
+        return self.users
 
 
     def get_userName(self, userResponse):
@@ -69,14 +70,14 @@ class IdleRpgBot():
                 pointGained = int((ts - channelUsers[event['user']]['activeTimeStamp']))
                 updatePoints = (channelUsers[event['user']]['score'] + pointGained)
                 newScore = {"score" : updatePoints}
-                channelUsers[event['user']].update(newScore)
-                channelUsers[event['user']].update({'presence':"away"})
+                self.users[event['user']].update(newScore)
+                self.users[event['user']].update({'presence': "away"})
 
             elif(event['presence'] == 'active'):
                 ts = time.time()
                 newActiveTime = {'activeTimeStamp' : ts}
-                channelUsers[event['user']].update(newActiveTime)
-                channelUsers[event['user']].update({'presence': "active"})
+                self.users[event['user']].update(newActiveTime)
+                self.users[event['user']].update({'presence': "active"})
 
     def sendMessage(self, event, message):
         self.sc.api_call(
