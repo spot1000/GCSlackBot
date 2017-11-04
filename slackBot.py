@@ -12,35 +12,56 @@ class IdleRpgBot():
         self.active_channel_name = active_channel_name
         self.sc = SlackClient(slack_token)
         self.users = {}
-        # self.fb_filename = db_filename
+        self.fb_filename = db_filename
         # self.load()
+        self.update_users()
 
-    def get_Users(self, startTime):
+    def save(self, event):
+        current_users = copy.deepcopy(self.users)
+        with open(self.fb_filename, 'wb') as db_file:
+            pickle.dump(current_users, db_file, protocol=pickle.HIGHEST_PROTOCOL)
+        
+
+    def load(self):
+        if os.path.isfile(self.fb_filename):
+            with open(self.fb_filename, 'rb') as db_file:
+                self.users = pickle.load(db_file)
+
+    def update_users(self):
+        startTime = time.time()
         channelInfo = (self.sc.api_call(
             "users.list",
             presence=True
         ))
-        members = channelInfo["members"]
+        members = channelInfo['members']
         for member in members:
             if member["is_bot"] == False and member['deleted'] == False and not member['id'] == 'USLACKBOT':
-
-                self.users[member['id']] = {
-                    "userName": self.get_userName(member),
-                    "presence": member['presence'],
-                    "score": 0
-                }
-                if (member['presence'] == 'active'):
+                if member['id'] in self.users and member['presence'] == 'active':
                     self.users[member['id']].update({
-                        "activeTimeStamp": startTime,
-                        "awayTimeStamp": 0
+                        "presence": member['presence'],
+                        "activeTimeStamp": startTime
                     })
-                else:
+                elif member['id'] in self.users and member['presence'] != 'active':
                     self.users[member['id']].update({
-                        "activeTimeStamp": 0,
-                        "awayTimeStamp": startTime
+                        "presence": member['presence'],
+                        "awatTimeStamp": startTime
                     })
-        return self.users
-
+                elif member['id'] not in self.users:
+                    self.users[member['id']] = {
+                        "userName": self.get_userName(member),
+                        "presence": member['presence'],
+                        "score": 0
+                    }
+                    if (member['presence'] == 'active'):
+                        self.users[member['id']].update({
+                            "activeTimeStamp": startTime,
+                            "awayTimeStamp": 0
+                        })
+                    else:
+                        self.users[member['id']].update({
+                            "activeTimeStamp": 0,
+                            "awayTimeStamp": startTime
+                        })
 
     def get_userName(self, userResponse):
         if (userResponse['profile']['display_name'] != ''):
@@ -56,10 +77,12 @@ class IdleRpgBot():
                 self.get_my_score(event, userList)
             elif (event['text'].lower() == 'get highscores'):
                 self.get_highscores(event, userList)
+            elif (event['text'].lower() == 'save scores'):
+                self.save(event)
         except KeyError:
             print('message edited')
             
-    def handle_presence_change(self, event,channelUsers):
+    def handle_presence_change(self, event, channelUsers):
         try:
             channelUsers[event['user']]
         except KeyError:
@@ -125,16 +148,14 @@ class IdleRpgBot():
     def connect(self):
         if self.sc.rtm_connect():
             print("StarterBot connected and running!")
-            startTime = time.time()
-            channelUsers = self.get_Users(startTime)
             while True:
                 events = self.sc.rtm_read()
 
                 for event in events:
                     if event['type'] == "message":
-                        self.handle_message(event, channelUsers)
+                        self.handle_message(event, self.users)
                     elif event['type'] == "presence_change":
-                        self.handle_presence_change(event,channelUsers)
+                        self.handle_presence_change(event, self.users)
 
                 time.sleep(.1)
         else:
