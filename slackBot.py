@@ -13,19 +13,35 @@ class IdleRpgBot():
         self.sc = SlackClient(slack_token)
         self.users = {}
         self.fb_filename = db_filename
-        # self.load()
+        self.load()
         self.update_users()
+        print(self.users)
 
     def save(self, event):
+        timeStamp = time.time()
+        for user in self.users:
+            if self.users[user]['presence'] == 'active':
+                self.update_score(user, timeStamp)
         current_users = copy.deepcopy(self.users)
+        savestate = {}
+        for user in current_users:
+            savestate.update({
+                user : {
+                    'score': current_users[user]['score'],
+                    'userName': current_users[user]['userName']}
+            })
+        #     savestate[user]['score'] = current_users[user]['score']
+        
+
         with open(self.fb_filename, 'wb') as db_file:
-            pickle.dump(current_users, db_file, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(savestate, db_file, protocol=pickle.HIGHEST_PROTOCOL)
         
 
     def load(self):
         if os.path.isfile(self.fb_filename):
             with open(self.fb_filename, 'rb') as db_file:
                 self.users = pickle.load(db_file)
+        
 
     def update_users(self):
         startTime = time.time()
@@ -36,17 +52,28 @@ class IdleRpgBot():
         members = channelInfo['members']
         for member in members:
             if member["is_bot"] == False and member['deleted'] == False and not member['id'] == 'USLACKBOT':
-                if member['id'] in self.users and member['presence'] == 'active':
+                if member['id'] in self.users: 
                     self.users[member['id']].update({
-                        "presence": member['presence'],
-                        "activeTimeStamp": startTime
+                        'userName': self.get_userName(member)
                     })
-                elif member['id'] in self.users and member['presence'] != 'active':
-                    self.users[member['id']].update({
-                        "presence": member['presence'],
-                        "awatTimeStamp": startTime
-                    })
-                elif member['id'] not in self.users:
+                    print('user in savestate')
+                    if member['presence'] == 'active':
+                        print('user active')
+                        self.users[member['id']].update({
+                            "presence": member['presence'],
+                            "activeTimeStamp": startTime,
+                            "awatTimeStamp": 0
+                        })
+                    else: 
+                        print('user not active')
+                        self.users[member['id']].update({
+                             "presence": member['presence'],
+                             "activeTimeStamp": 0,
+                             "awatTimeStamp": startTime
+                         })
+
+                else:
+                    print('user not in list')
                     self.users[member['id']] = {
                         "userName": self.get_userName(member),
                         "presence": member['presence'],
@@ -70,17 +97,18 @@ class IdleRpgBot():
             return userResponse['profile']['real_name']
 
     def handle_message(self, event, userList):
-        try:
-            if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
-                self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
-            elif (event['text'].lower() == 'get my score'):
-                self.get_my_score(event, userList)
-            elif (event['text'].lower() == 'get highscores'):
-                self.get_highscores(event, userList)
-            elif (event['text'].lower() == 'save scores'):
-                self.save(event)
-        except KeyError:
-            print('message edited')
+        print(userList)
+        # try:
+        if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+            self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
+        elif (event['text'].lower() == 'get my score'):
+            self.get_my_score(event, userList)
+        elif (event['text'].lower() == 'get highscores'):
+            self.get_highscores(event, userList)
+        elif (event['text'].lower() == 'save all scores'):
+            self.save(event)
+        # except KeyError:
+        #     print('message edited')
             
     def handle_presence_change(self, event, channelUsers):
         try:
@@ -92,15 +120,28 @@ class IdleRpgBot():
                 ts = time.time()
                 pointGained = int((ts - channelUsers[event['user']]['activeTimeStamp']))
                 updatePoints = (channelUsers[event['user']]['score'] + pointGained)
-                newScore = {"score" : updatePoints}
-                self.users[event['user']].update(newScore)
-                self.users[event['user']].update({'presence': "away"})
+                self.users[event['user']].update({
+                    'presence': "away", 
+                    "score": updatePoints
+                    })
 
             elif(event['presence'] == 'active'):
                 ts = time.time()
-                newActiveTime = {'activeTimeStamp' : ts}
-                self.users[event['user']].update(newActiveTime)
-                self.users[event['user']].update({'presence': "active"})
+                self.users[event['user']].update({
+                    'presence': "active",
+                    'activeTimeStamp': ts
+                    })
+
+    def update_score(self, user, time_stamp):
+        print(user)
+        print(time_stamp)
+        new_points = self.users[user]['score'] + time_stamp - self.users[user]['activeTimeStamp']
+        print(int(new_points))
+        self.users[user].update({
+            'score': int(new_points),
+            'activeTimeStamp': time_stamp
+        })
+
 
     def sendMessage(self, event, message):
         self.sc.api_call(
