@@ -15,7 +15,6 @@ class IdleRpgBot():
         self.fb_filename = db_filename
         self.load()
         self.update_users()
-        print(self.users)
 
     def save(self, event):
         timeStamp = time.time()
@@ -56,16 +55,13 @@ class IdleRpgBot():
                     self.users[member['id']].update({
                         'userName': self.get_userName(member)
                     })
-                    print('user in savestate')
                     if member['presence'] == 'active':
-                        print('user active')
                         self.users[member['id']].update({
                             "presence": member['presence'],
                             "activeTimeStamp": startTime,
                             "awatTimeStamp": 0
                         })
-                    else: 
-                        print('user not active')
+                    else:
                         self.users[member['id']].update({
                              "presence": member['presence'],
                              "activeTimeStamp": 0,
@@ -73,7 +69,6 @@ class IdleRpgBot():
                          })
 
                 else:
-                    print('user not in list')
                     self.users[member['id']] = {
                         "userName": self.get_userName(member),
                         "presence": member['presence'],
@@ -98,17 +93,17 @@ class IdleRpgBot():
 
     def handle_message(self, event, userList):
         print(userList)
-        # try:
-        if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
-            self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
-        elif (event['text'].lower() == 'get my score'):
-            self.get_my_score(event, userList)
-        elif (event['text'].lower() == 'get highscores'):
-            self.get_highscores(event, userList)
-        elif (event['text'].lower() == 'save all scores'):
-            self.save(event)
-        # except KeyError:
-        #     print('message edited')
+        try:
+            if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+                self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
+            elif (event['text'].lower() == 'get my score'):
+                self.get_my_score(event, userList)
+            elif (event['text'].lower() == 'get highscores'):
+                self.get_highscores(event, userList)
+            elif (event['text'].lower() == 'save all scores'):
+                self.save(event)
+        except KeyError:
+            print('unknown text event')
             
     def handle_presence_change(self, event, channelUsers):
         try:
