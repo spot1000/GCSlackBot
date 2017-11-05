@@ -5,6 +5,7 @@ from slackclient import SlackClient
 from dotenv import load_dotenv
 import pickle
 import copy
+import math
 
 class IdleRpgBot():
     def __init__(self, slack_token, active_channel_name, db_filename = "users.db"):
@@ -20,27 +21,28 @@ class IdleRpgBot():
         timeStamp = time.time()
         for user in self.users:
             if self.users[user]['presence'] == 'active':
-                self.update_score(user, timeStamp)
+                self.save_score(user, timeStamp)
         current_users = copy.deepcopy(self.users)
         savestate = {}
         for user in current_users:
             savestate.update({
                 user : {
+                    'level': current_users[user]['level'],
                     'score': current_users[user]['score'],
                     'userName': current_users[user]['userName']}
             })
         #     savestate[user]['score'] = current_users[user]['score']
-        
+
 
         with open(self.fb_filename, 'wb') as db_file:
             pickle.dump(savestate, db_file, protocol=pickle.HIGHEST_PROTOCOL)
-        
+
 
     def load(self):
         if os.path.isfile(self.fb_filename):
             with open(self.fb_filename, 'rb') as db_file:
                 self.users = pickle.load(db_file)
-        
+
 
     def update_users(self):
         startTime = time.time()
@@ -51,7 +53,7 @@ class IdleRpgBot():
         members = channelInfo['members']
         for member in members:
             if member["is_bot"] == False and member['deleted'] == False and not member['id'] == 'USLACKBOT':
-                if member['id'] in self.users: 
+                if member['id'] in self.users:
                     self.users[member['id']].update({
                         'userName': self.get_userName(member)
                     })
@@ -72,7 +74,8 @@ class IdleRpgBot():
                     self.users[member['id']] = {
                         "userName": self.get_userName(member),
                         "presence": member['presence'],
-                        "score": 0
+                        "score": 0,
+                        "level": 1
                     }
                     if (member['presence'] == 'active'):
                         self.users[member['id']].update({
@@ -92,19 +95,20 @@ class IdleRpgBot():
             return userResponse['profile']['real_name']
 
     def handle_message(self, event, userList):
-        print(userList)
         try:
             if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
                 self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
-            elif (event['text'].lower() == 'get my score'):
+            elif (event['text'].lower() == 'get my score' or event['text'].lower() == '!score'):
                 self.get_my_score(event, userList)
             elif (event['text'].lower() == 'get highscores'):
                 self.get_highscores(event, userList)
+            elif (event['text'].lower() == '!level'):
+                self.level(event, userList)
             elif (event['text'].lower() == 'save all scores'):
                 self.save(event)
         except KeyError:
-            print('unknown text event')
-            
+            print('unknown text event', KeyError)
+
     def handle_presence_change(self, event, channelUsers):
         try:
             channelUsers[event['user']]
@@ -116,7 +120,7 @@ class IdleRpgBot():
                 pointGained = int((ts - channelUsers[event['user']]['activeTimeStamp']))
                 updatePoints = (channelUsers[event['user']]['score'] + pointGained)
                 self.users[event['user']].update({
-                    'presence': "away", 
+                    'presence': "away",
                     "score": updatePoints
                     })
 
@@ -127,7 +131,7 @@ class IdleRpgBot():
                     'activeTimeStamp': ts
                     })
 
-    def update_score(self, user, time_stamp):
+    def save_score(self, user, time_stamp):
         print(user)
         print(time_stamp)
         new_points = self.users[user]['score'] + time_stamp - self.users[user]['activeTimeStamp']
@@ -137,7 +141,6 @@ class IdleRpgBot():
             'activeTimeStamp': time_stamp
         })
 
-
     def sendMessage(self, event, message):
         self.sc.api_call(
             "chat.postMessage",
@@ -145,12 +148,30 @@ class IdleRpgBot():
             text=message
         )
 
-    def get_my_score(self, event, userList):
-        timestamp = time.time()
-        score = userList[event['user']]['score']
-        score = userList[event['user']]['score'] + \
-            int(timestamp) - int(userList[event['user']]['activeTimeStamp'])
+    def level(self, event, userList):
+        score = self.update_score(event, userList)
+        level = self.update_level(event, userList)
+        level_threshold = int(1 * (1.16 * math.exp(level)))
+        next_level = int((level_threshold - score) / 10)
 
+        self.sendMessage(event, 'You are level ' + str(level) + '\n'\
+            'Next level reached in ~' + str( next_level ) + ' seconds')
+
+    def update_level(self, event, userList):
+        while userList[event['user']]['score'] > int(1 * (1.16 * math.exp(userList[event['user']]['level']))):
+            userList[event['user']]['level'] = userList[event['user']]['level'] + 1
+            print('Level up!', userList[event['user']]['level'])
+
+        return userList[event['user']]['level']
+
+    def update_score(self, event, userList):
+        timestamp = time.time()
+        userList[event['user']]['score'] = userList[event['user']]['score'] + \
+            int(timestamp) - int(userList[event['user']]['activeTimeStamp'])
+        return userList[event['user']]['score']
+
+    def get_my_score(self, event, userList):
+        score = self.update_score(event, userList)
         self.sendMessage(event, userList[event['user']]['userName'] + ", Your current score is: " + str(score))
 
     def get_highscores(self, event, userList):
@@ -171,15 +192,7 @@ class IdleRpgBot():
         allScoreSorted = ''
         for k, v in s:
             allScoreSorted = allScoreSorted + str(k) + ' ' + str(v) + '\n'
-        self.sendMessage(event, '*** Highscores *** \n' + allScoreSorted)
-
-    def presenceSub(self):
-        self.sc.api_call(
-            type= "presence_sub",
-            ids= [
-                "U7NTNRCGH"
-                ]
-        )
+        self.sendMessage(event, '*** Highscores ***\n' + allScoreSorted)
 
     def connect(self):
         if self.sc.rtm_connect():
