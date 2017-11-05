@@ -151,14 +151,14 @@ class IdleRpgBot():
     def level(self, event, userList):
         score = self.update_score(event, userList)
         level = self.update_level(event, userList)
-        level_threshold = int(1 * (1.16 * math.exp(level)))
+        level_threshold = int(20 * (1.16 * math.exp(level)))
         next_level = int((level_threshold - score) / 10)
 
         self.sendMessage(event, 'You are level ' + str(level) + '\n'\
             'Next level reached in ~' + str( next_level ) + ' seconds')
 
     def update_level(self, event, userList):
-        while userList[event['user']]['score'] > int(1 * (1.16 * math.exp(userList[event['user']]['level']))):
+        while userList[event['user']]['score'] > int(20 * (1.16 * math.exp(userList[event['user']]['level']))):
             userList[event['user']]['level'] = userList[event['user']]['level'] + 1
             print('Level up!', userList[event['user']]['level'])
 
