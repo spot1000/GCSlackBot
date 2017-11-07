@@ -96,16 +96,23 @@ class IdleRpgBot():
 
     def handle_message(self, event, userList):
         try:
-            if (event['text'].lower() == 'hello' or event['text'].lower() == 'hi'):
+            if (event['text'].lower().startswith('hello') or event['text'].lower().startswith('hi')):
                 self.sendMessage(event, 'Hi ' + userList[event['user']]['userName'] + '! :tada:')
+                self.penalties(event, userList, type='hello')
             elif (event['text'].lower() == 'get my score' or event['text'].lower() == '!score'):
                 self.get_my_score(event, userList)
+                self.penalties(event, userList, type='score')
             elif (event['text'].lower() == 'get highscores'):
                 self.get_highscores(event, userList)
+                self.penalties(event, userList, type='highscores')
             elif (event['text'].lower() == '!level'):
                 self.level(event, userList)
+                self.penalties(event, userList, type='level')
             elif (event['text'].lower() == 'save all scores'):
                 self.save(event)
+            else:
+                self.penalties(event, userList, type='other')
+
         except KeyError:
             print('unknown text event', KeyError)
 
@@ -152,13 +159,18 @@ class IdleRpgBot():
         score = self.update_score(event, userList)
         level = self.update_level(event, userList)
         level_threshold = int(20 * (1.16 * math.exp(level)))
-        next_level = int((level_threshold - score) / 10)
+
+        if (score < 0):
+            next_level = int(( (-score) + level_threshold))
+        else:
+            next_level = int((level_threshold - score))
 
         self.sendMessage(event, 'You are level ' + str(level) + '\n'\
             'Next level reached in ~' + str( next_level ) + ' seconds')
 
     def update_level(self, event, userList):
-        while userList[event['user']]['score'] > int(20 * (1.16 * math.exp(userList[event['user']]['level']))):
+        score = self.update_score(event, userList)
+        while score > int(20 * (1.16 * math.exp(userList[event['user']]['level']))):
             userList[event['user']]['level'] = userList[event['user']]['level'] + 1
             print('Level up!', userList[event['user']]['level'])
 
@@ -168,6 +180,8 @@ class IdleRpgBot():
         timestamp = time.time()
         userList[event['user']]['score'] = userList[event['user']]['score'] + \
             int(timestamp) - int(userList[event['user']]['activeTimeStamp'])
+        userList[event['user']]['activeTimeStamp'] = timestamp
+
         return userList[event['user']]['score']
 
     def get_my_score(self, event, userList):
@@ -193,6 +207,30 @@ class IdleRpgBot():
         for k, v in s:
             allScoreSorted = allScoreSorted + str(k) + ' ' + str(v) + '\n'
         self.sendMessage(event, '*** Highscores ***\n' + allScoreSorted)
+
+    def penalties(self, event, userList, type):
+        score = self.update_score(event, userList)
+        level = self.update_level(event, userList)
+
+        # print('Before penalty: ', userList[event['user']]['score'])
+        if (type == 'hello'):
+            penalty = len(event['text']) * int(1.14 * level) / 2
+            self.sendMessage(event, 'Btw, the time until your next level up increased by ' + str(penalty) + ' seconds')
+        elif (type == 'score'):
+            penalty = len(event['text']) * int(1.14 * level) / 4
+            self.sendMessage(event, 'But that does not take into account that I just lowered your score by ' + str(penalty) + ' points')
+        elif (type == 'highscores'):
+            penalty = len(event['text']) * int(1.14 * level) / 4
+            self.sendMessage(event, 'But that does not take into account that I just lowered your score by ' + str(penalty) + ' points')
+        elif (type == 'level'):
+            penalty = len(event['text']) * int(1.14 * level) / 4
+            self.sendMessage(event, 'And I increased the time until your next level by ' + str(penalty) + ' seconds')
+        else:
+            penalty = len(event['text']) * int(1.14 * level)
+            self.sendMessage(event, 'Silence! Time until your next level increased by ' + str(penalty) + ' seconds')
+
+        userList[event['user']]['score'] = userList[event['user']]['score'] - penalty
+        # print('\nAfter penalty: ', userList[event['user']]['score'])
 
     def connect(self):
         if self.sc.rtm_connect():
